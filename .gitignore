@@ -1,1 +1,5 @@
+# Dev environment
+.vscode/*
+
+# DCS
 *.miz
