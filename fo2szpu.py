@@ -11,12 +11,13 @@ from unit_map import UnitMap, Faction, Nation, Formation
 
 
 class MizFormation:
-    def __init__(self, name:str, tags:list, faction:UnitMap.Faction, nation:UnitMap.Nation, formation:UnitMap.Formation):
+    def __init__(self, name:str, tags:list, faction:UnitMap.Faction, nation:UnitMap.Nation, formation:UnitMap.Formation, position:dcs.mapping.Point):
         self.name = name
         self.tags = tags
         self.faction = faction
         self.nation = nation
         self.formation = formation
+        self.position = position
 
 
 def formations_from_miz(miz:dcs.Mission, unit_map:UnitMap):
@@ -78,9 +79,33 @@ def formations_from_miz(miz:dcs.Mission, unit_map:UnitMap):
         if formation is None:
             print(f"WARN:  invalid formation {name}")
         else:
-            formations[name] = MizFormation(name, tags, faction, nation, formation)
+            formations[name] = MizFormation(name, tags, faction, nation, formation, obj.position)
 
     return formations
+
+
+def formations_to_miz_unitgroups(miz:dcs.Mission, formations:dict):
+    for name, data in formations.items():
+        print(f"INFO:  adding group [{name}]")
+
+        country = None
+        if data.faction.tag == "BLUE":
+            country = miz.country_by_id(dcs.countries.CombinedJointTaskForcesBlue.id)
+        elif data.faction.tag == "RED":
+            country = miz.country_by_id(dcs.countries.CombinedJointTaskForcesRed.id)
+        else:
+            raise NotImplementedError(f"Invalid faction name [{data.faction.tag}]")
+
+        vehicle_group = miz.vehicle_group_platoon(
+            country = country,
+            name = name,
+            types = data.formation.unit_set,
+            position = data.position,
+            heading = data.faction.unit_heading,
+            formation = dcs.unitgroup.VehicleGroup.Formation.Scattered,
+            move_formation = dcs.unitgroup.PointAction.OffRoad
+        )
+
 
 
 if __name__ == "__main__":
@@ -99,7 +124,9 @@ if __name__ == "__main__":
     formations = formations_from_miz(miz, unit_map)
     print(f"INFO [fo2szpu]:  formations detected = {len(formations.keys())}")
 
-    print(f"INFO [fo2szpu]:  Saving output: {target_file}")
+    formations_to_miz_unitgroups(miz, formations)
+
+    print(f"INFO [fo2szpu]:  Saving output: {output_file}")
     miz.save(output_file)
 
 
